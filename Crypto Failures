@@ -7,7 +7,7 @@ import sys
 from passlib.hash import des_crypt
 
 
-target = "http://10.112.189.202/"
+target = "TARGET_IP"
 charset = string.ascii_letters + string.digits + string.punctuation + ""
 
 
