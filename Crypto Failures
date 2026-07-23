@@ -1,0 +1,74 @@
+#script for final question https://tryhackme.com/room/cryptofailures
+
+import requests
+import string
+import urllib.parse 
+import sys
+from passlib.hash import des_crypt
+
+
+target = "http://10.112.189.202/"
+charset = string.ascii_letters + string.digits + string.punctuation + ""
+
+
+def ecb_oracle_exploit():
+    secret_key = ""
+    print("[*] starting ecb")
+    
+    for i in range(300):
+        padding_leng = (6-i) % 8
+        pad_block= "b" * padding_leng
+        
+        user_agent = "Mo" + pad_block
+        headers = {"User-Agent": user_agent}
+        
+        block_index = 1 + ((i+1) // 8)
+        
+        if block_index == 1:
+            
+            local_prefix = pad_block + ":" + secret_key
+        else:
+            local_prefix = secret_key[-7:]
+            
+        try:    
+            response = requests.get(target, headers = headers, timeout = 5, allow_redirects = False)
+        except requests.exceptions.RequestException as err:
+                print(f"[-] Error by: {err}")
+                sys.exit(1)
+        
+        if "secure_cookie" not in response.cookies:
+            print("secure_cookie couldn't find")
+            sys.exit(1)
+            
+        raw_cookie = response.cookies["secure_cookie"]
+        secure_cookie = urllib.parse.unquote(raw_cookie)
+        
+        salt = secure_cookie[:2]    
+            
+        target_start = block_index * 13
+        target_end = target_start + 13
+        target_hash = secure_cookie[target_start:target_end]
+        
+        found_char = False
+        
+        for char in charset:
+            
+            test_string = local_prefix + char
+            local_hash = des_crypt.hash(test_string, salt=salt)
+            
+            if local_hash == target_hash:
+                print("[+] found char: "  + char)
+                secret_key += char
+                print("Current Key: " + secret_key )
+                found_char = True
+               
+                break
+           
+        if not found_char:
+            print("[-] Couldn't find the next character.")
+            break
+    print("[!!!] Final key: " + secret_key)
+    
+if __name__ == "__main__":
+    ecb_oracle_exploit()
+   
