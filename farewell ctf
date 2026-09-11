@@ -1,3 +1,5 @@
+#this script used for farewell ctf. https://tryhackme.com/room/farewell
+
 import requests
 import random
 from concurrent.futures import ThreadPoolExecutor
